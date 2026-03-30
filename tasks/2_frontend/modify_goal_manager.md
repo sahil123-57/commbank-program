@@ -1,85 +1,98 @@
-# Modify The Goal Manager So Users Can Add And Change Icons
+import { Picker } from 'emoji-mart';
+import 'emoji-mart/css/emoji-mart.css';
+const handleEmojiSelect = (emoji: any) => {
+  setIcon(emoji.native);
+};
+import React, { useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { Picker } from 'emoji-mart';
+import 'emoji-mart/css/emoji-mart.css';
+import { addGoal, updateGoal } from '../store/actions/goalActions'; // Adjust path if necessary
+import { Goal } from '../models/goal.model';
 
-- [ ] Add an `Add icon` component that:
-  - [ ] Is only visible when there is no icon
-  - [ ] Uses `TransparentButton` component
-  - [ ] Opens the emoji picker component
-
-```ts
-// GoalManager.tsx
-
-export function GoalManager(props: Props) {
-  // ...
-
-  const [icon, setIcon] = useState<string | null>(null)
-
-  useEffect(() => {
-    setIcon(props.goal.icon)
-  }, [props.goal.id, props.goal.icon])
-
-  const hasIcon = () => icon != null
-
-  const addIconOnClick = (event: React.MouseEvent) => {
-    event.stopPropagation()
-    setEmojiPickerIsOpen(true)
-  }
-
-  return (
-    {/* ... */}
-    <AddIconButtonContainer hasIcon={hasIcon()}>
-      <TransparentButton onClick={addIconOnClick}>
-        <FontAwesomeIcon icon={faSmile} size="2x" />
-        <AddIconButtonText>Add icon</AddIconButtonText>
-      </TransparentButton>
-    </AddIconButtonContainer>
-    {/* ... */}
-  )
-}
-```
-
-- [ ] Add an `Icon` component that:
-  - [ ] Is only visible when there is an icon
-  - [ ] Uses `TransparentButton` component
-  - [ ] Displays the icon with `font-size: 5.5rem;`
-  - [ ] Opens the emoji picker component
-
-```ts
-// GoalIcon.tsx
-
-const Icon = styled.h1`
-  font-size: 6rem;
-  cursor: pointer;
-`
-
-export default function GoalIcon(props: Props) {
-  return (
-    <TransparentButton onClick={props.onClick}>
-      <Icon>{props.icon}</Icon>
-    </TransparentButton>
-  )
+interface Props {
+  existingGoal?: Goal;
+  onClose: () => void;
 }
 
-// GoalManager.tsx
+const GoalManager: React.FC<Props> = ({ existingGoal, onClose }) => {
+  const dispatch = useDispatch();
+  
+  // State for form fields
+  const [name, setName] = useState(existingGoal?.name || '');
+  const [targetAmount, setTargetAmount] = useState(existingGoal?.targetAmount || 0);
+  const [targetDate, setTargetDate] = useState(existingGoal?.targetDate || '');
+  
+  // 1. New state for the Emoji Icon
+  const [icon, setIcon] = useState<string>(existingGoal?.icon || '🎯');
+  const [showPicker, setShowPicker] = useState(false);
 
-type GoalIconContainerProps = { shouldShow: boolean }
+  // 2. Handler for selecting an emoji
+  const handleEmojiSelect = (emoji: any) => {
+    setIcon(emoji.native);
+    setShowPicker(false); // Close picker after selection
+  };
 
-const GoalIconContainer = styled.div<GoalIconContainerProps>`
-  display: ${(props) => (props.shouldShow ? 'flex' : 'none')};
-`
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const goalData = {
+      ...existingGoal,
+      name,
+      targetAmount,
+      targetDate,
+      icon, // 3. Include the icon in the submitted data
+    };
 
-export function GoalManager(props: Props) {
-  // ...
-
-  const hasIcon = () => icon != null
-
-  const goal = useAppSelector(selectGoalsMap)[props.goal.id]
+    if (existingGoal?.id) {
+      dispatch(updateGoal(goalData));
+    } else {
+      dispatch(addGoal(goalData));
+    }
+    onClose();
+  };
 
   return (
-    {/* ... */}
-    <GoalIconContainer shouldShow={hasIcon()}>
-      <GoalIcon icon={goal.icon} onClick={addIconOnClick} />
-    </GoalIconContainer>
-    {/* ... */}
-  )
-}
-```
+    <div className="goal-manager">
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label>Goal Icon</label>
+          <div className="emoji-display" onClick={() => setShowPicker(!showPicker)} style={{ cursor: 'pointer', fontSize: '2rem' }}>
+            {icon}
+          </div>
+          
+          {/* 4. The Emoji Picker Component */}
+          {showPicker && (
+            <div className="picker-container">
+              <Picker onSelect={handleEmojiSelect} title="Pick your icon" emoji="point_up" />
+            </div>
+          )}
+        </div>
+
+        <div className="form-group">
+          <label>Goal Name</label>
+          <input 
+            type="text" 
+            value={name} 
+            onChange={(e) => setName(e.target.value)} 
+            required 
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Target Amount</label>
+          <input 
+            type="number" 
+            value={targetAmount} 
+            onChange={(e) => setTargetAmount(Number(e.target.value))} 
+            required 
+          />
+        </div>
+
+        <button type="submit">{existingGoal ? 'Update Goal' : 'Create Goal'}</button>
+      </form>
+    </div>
+  );
+};
+
+export default GoalManager;
